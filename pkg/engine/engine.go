@@ -1,38 +1,50 @@
 package engine
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
+	"ggateway/pkg/ggateway"
 	"github.com/panjf2000/gnet"
 	"github.com/panjf2000/gnet/pool/goroutine"
-	"github.com/valyala/fasthttp"
 	"log"
+	"net/http"
+	_ "net/http/pprof"
 )
 
 type httpServer struct {
 	*gnet.EventServer
-	pool *goroutine.Pool
+	pool   *goroutine.Pool
+	router *ggateway.Router
 }
 
 type httpCodec struct {
-	req fasthttp.Request
 }
 
 var errMsg = "Internal Server Error"
 var errMsgBytes = []byte(errMsg)
 
 func (h httpCodec) Encode(c gnet.Conn, buf []byte) ([]byte, error) {
-	panic("implement me")
+	return buf, nil
 }
 
-func (h httpCodec) Decode(c gnet.Conn) ([]byte, error) {
-	panic("implement me")
+func (h httpCodec) Decode(c gnet.Conn) (out []byte, err error) {
+	buf := c.Read()
+	c.ResetBuffer()
+	req, err := http.ReadRequest(bufio.NewReader(bytes.NewReader(buf)))
+	c.SetContext(Context{req: req, w: new(ggateway.GatewayHTTPResponseWriter)})
+	if len(buf) > 0 {
+		return buf, err
+	} else {
+		return
+	}
 }
 
-func Server(port int, multicore bool) {
+func Server(port int, multicore bool, router *ggateway.Router) {
 	p := goroutine.Default()
 	defer p.Release()
 
-	http := &httpServer{pool: p}
+	http := &httpServer{pool: p, router: router}
 	hc := new(httpCodec)
 	// Start serving!
 	log.Fatal(gnet.Serve(http, fmt.Sprintf("tcp://:%d", port), gnet.WithMulticore(multicore), gnet.WithCodec(hc)))
@@ -51,8 +63,11 @@ func (hs *httpServer) React(frame []byte, c gnet.Conn) (out []byte, action gnet.
 		action = gnet.Close
 		return
 	}
-	req := c.Context().(fasthttp.Request)
-	fmt.Println(string(req.RequestURI()))
+	context := c.Context().(Context)
+	if context.req != nil {
+		hs.router.ServeHTTP(context.w, context.req)
+	}
+
 	/*	data := append([]byte{}, frame...)
 
 		// Use ants pool to unblock the event-loop.
@@ -62,4 +77,11 @@ func (hs *httpServer) React(frame []byte, c gnet.Conn) (out []byte, action gnet.
 		})*/
 	out = frame
 	return
+}
+
+
+
+type Context struct {
+	req *http.Request
+	w   *ggateway.GatewayHTTPResponseWriter
 }

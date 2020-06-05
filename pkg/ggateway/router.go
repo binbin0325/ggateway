@@ -74,7 +74,7 @@
 //  // by the index of the parameter. This way you can also get the name (key)
 //  thirdKey   := ps[2].Key   // the name of the 3rd parameter
 //  thirdValue := ps[2].Value // the value of the 3rd parameter
-package router
+package ggateway
 
 import (
 	"context"
@@ -86,7 +86,7 @@ import (
 // Handle is a function that can be registered to a route to handle HTTP
 // requests. Like http.HandlerFunc, but has a third parameter for the values of
 // wildcards (path variables).
-type Handle func(*http.Request, Params)
+type Handle func(http.ResponseWriter, *http.Request, Params)
 
 // Param is a single URL parameter, consisting of a key and a value.
 type Param struct {
@@ -232,16 +232,16 @@ func (r *Router) putParams(ps *Params) {
 }
 
 func (r *Router) saveMatchedRoutePath(path string, handle Handle) Handle {
-	return func(req *http.Request, ps Params) {
+	return func(w http.ResponseWriter, req *http.Request, ps Params) {
 		if ps == nil {
 			psp := r.getParams()
 			ps := (*psp)[0:1]
 			ps[0] = Param{Key: MatchedRoutePathParam, Value: path}
-			handle(req, ps)
+			handle(w, req, ps)
 			r.putParams(psp)
 		} else {
 			ps = append(ps, Param{Key: MatchedRoutePathParam, Value: path})
-			handle(req, ps)
+			handle(w, req, ps)
 		}
 	}
 }
@@ -278,6 +278,18 @@ func (r *Router) PATCH(path string, handle Handle) {
 
 // DELETE is a shortcut for router.Handle(http.MethodDelete, path, handle)
 func (r *Router) DELETE(path string, handle Handle) {
+	r.Handle(http.MethodDelete, path, handle)
+}
+
+// Any registers a route that matches all the HTTP methods.
+// GET, HEAD, OPTIONS, POST, PUT, PATCH, DELETE.
+func (r *Router) Any(path string, handle Handle) {
+	r.Handle(http.MethodGet, path, handle)
+	r.Handle(http.MethodHead, path, handle)
+	r.Handle(http.MethodOptions, path, handle)
+	r.Handle(http.MethodPost, path, handle)
+	r.Handle(http.MethodPut, path, handle)
+	r.Handle(http.MethodPatch, path, handle)
 	r.Handle(http.MethodDelete, path, handle)
 }
 
@@ -340,13 +352,13 @@ func (r *Router) Handle(method, path string, handle Handle) {
 // The Params are available in the request context under ParamsKey.
 func (r *Router) Handler(method, path string, handler http.Handler) {
 	r.Handle(method, path,
-		func(req *http.Request, p Params) {
+		func(w http.ResponseWriter, req *http.Request, p Params) {
 			if len(p) > 0 {
 				ctx := req.Context()
 				ctx = context.WithValue(ctx, ParamsKey, p)
 				req = req.WithContext(ctx)
 			}
-			handler.ServeHTTP(req)
+			handler.ServeHTTP(w, req)
 		},
 	)
 }
@@ -374,9 +386,9 @@ func (r *Router) ServeFiles(path string, root http.FileSystem) {
 
 	fileServer := http.FileServer(root)
 
-	r.GET(path, func(req *http.Request, ps Params) {
+	r.GET(path, func(w http.ResponseWriter, req *http.Request, ps Params) {
 		req.URL.Path = ps.ByName("filepath")
-		fileServer.ServeHTTP(req)
+		fileServer.ServeHTTP(w, req)
 	})
 }
 
@@ -457,7 +469,7 @@ func (r *Router) allowed(path, reqMethod string) (allow string) {
 }
 
 // ServeHTTP makes the router implement the http.Handler interface.
-func (r *Router) ServeHTTP(req *http.Request) {
+func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if r.PanicHandler != nil {
 		defer r.recv(w, req)
 	}
@@ -536,4 +548,37 @@ func (r *Router) ServeHTTP(req *http.Request) {
 	} else {
 		http.NotFound(w, req)
 	}
+}
+
+type GatewayHTTPResponseWriter struct {
+	statusCode int
+	h          http.Header
+	body       []byte
+}
+
+func (w *GatewayHTTPResponseWriter) StatusCode() int {
+	if w.statusCode == 0 {
+		return http.StatusOK
+	}
+	return w.statusCode
+}
+
+func (w *GatewayHTTPResponseWriter) Header() http.Header {
+	if w.h == nil {
+		w.h = make(http.Header)
+	}
+	return w.h
+}
+
+func (w *GatewayHTTPResponseWriter) WriteHeader(statusCode int) {
+	w.statusCode = statusCode
+}
+
+func (w *GatewayHTTPResponseWriter) Write(p []byte) (int, error) {
+	w.body = append(w.body, p...)
+	return len(p), nil
+}
+
+func (m *GatewayHTTPResponseWriter) WriteString(s string) (n int, err error) {
+	return len(s), nil
 }

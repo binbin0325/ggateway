@@ -3,6 +3,7 @@ package nacos
 
 import (
 	"fmt"
+	"ggateway/pkg/cc"
 	"sync"
 	"time"
 
@@ -27,16 +28,23 @@ var clientConfigTest = constant.ClientConfig{
 var once sync.Once
 var configClient config_client.ConfigClient
 
-func GetConfigClient() config_client.ConfigClient {
+type ConfigServer struct {
+	Ip string
+	Port uint64
+	Username string
+	Password string
+}
+
+func (cs *ConfigServer) GetConfigClient() config_client.ConfigClient {
 	//实现单例
 	once.Do(func() {
-		configClient = initConfigClientTest()
+		configClient = cs.initConfigClientTest()
 	})
 	return configClient
 
 }
 
-func initConfigClientTest() config_client.ConfigClient {
+func (cs *ConfigServer) initConfigClientTest() config_client.ConfigClient {
 	nc := nacos_client.NacosClient{}
 	nc.SetServerConfig([]constant.ServerConfig{constant.ServerConfig{
 		IpAddr:      viper.GetString("nacos.config.ip"),

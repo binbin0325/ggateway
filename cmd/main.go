@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"ggateway/pkg/engine"
+	"ggateway/pkg/ggateway/grouter"
 	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/viper"
 	"gopkg.in/alecthomas/kingpin.v2"
@@ -36,7 +37,7 @@ func main() {
 			os.Exit(0)
 		}
 	}()
-	engine.Server(*port, *multicore)
+	engine.Server(*port, *multicore,grouter.InitRouter())
 }
 
 
