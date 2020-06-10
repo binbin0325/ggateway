@@ -133,6 +133,18 @@ func (ps Params) MatchedRoutePath() string {
 	return ps.ByName(MatchedRoutePathParam)
 }
 
+// HandlerFunc defines the handler used by gin middleware as return value.
+type HandlerFunc func(http.ResponseWriter, *http.Request)
+
+//Router Filter Order Func
+type HandlerOrderFunc struct {
+	Order      int64
+	FilterFunc HandlerFunc
+}
+
+// HandlersChain defines a HandlerFunc array.
+type HandlersChain []HandlerOrderFunc
+
 // Router is a http.Handler which can be used to dispatch requests to different
 // handler functions via configurable routes
 type Router struct {
@@ -203,6 +215,12 @@ type Router struct {
 	// The handler can be used to keep your server from crashing because of
 	// unrecovered panics.
 	PanicHandler func(http.ResponseWriter, *http.Request, interface{})
+
+	GlobalHandlers HandlersChain
+}
+
+func (r *Router) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
+	panic("implement me")
 }
 
 // Make sure the Router conforms with the http.Handler interface
@@ -469,7 +487,8 @@ func (r *Router) allowed(path, reqMethod string) (allow string) {
 }
 
 // ServeHTTP makes the router implement the http.Handler interface.
-func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+func (c *Context) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	r := c.router
 	if r.PanicHandler != nil {
 		defer r.recv(w, req)
 	}
@@ -581,4 +600,23 @@ func (w *GatewayHTTPResponseWriter) Write(p []byte) (int, error) {
 
 func (m *GatewayHTTPResponseWriter) WriteString(s string) (n int, err error) {
 	return len(s), nil
+}
+
+func (r *Router) Use(orderFunc HandlerOrderFunc) {
+	r.GlobalHandlers = append(r.GlobalHandlers, orderFunc)
+}
+
+// 重写 Len() 方法
+func (a HandlersChain) Len() int {
+	return len(a)
+}
+
+// 重写 Swap() 方法
+func (a HandlersChain) Swap(i, j int) {
+	a[i], a[j] = a[j], a[i]
+}
+
+// 重写 Less() 方法， 从大到小排序
+func (a HandlersChain) Less(i, j int) bool {
+	return a[j].Order < a[i].Order
 }

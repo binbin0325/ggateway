@@ -17,48 +17,54 @@ import (
 	"github.com/nacos-group/nacos-sdk-go/vo"
 )
 
-var clientConfigTest = constant.ClientConfig{
+var clientConfig = constant.ClientConfig{
 	TimeoutMs:           10 * 1000,
 	BeatInterval:        5 * 1000,
 	ListenInterval:      300 * 1000,
 	NotLoadCacheAtStart: true,
-	//Username:            "nacos",
-	//Password:            "nacos",
 }
-var once sync.Once
-var configClient config_client.ConfigClient
 
 type ConfigServer struct {
-	Ip string
-	Port uint64
+	Ip       string
+	Port     uint64
 	Username string
 	Password string
 }
 
-func (cs *ConfigServer) GetConfigClient() config_client.ConfigClient {
+var once sync.Once
+var configClient config_client.ConfigClient
+
+func (cs *ConfigServer) GetConfigClient() interface{} {
 	//实现单例
 	once.Do(func() {
-		configClient = cs.initConfigClientTest()
+		configClient = cs.initConfigClient()
 	})
 	return configClient
 
 }
 
-func (cs *ConfigServer) initConfigClientTest() config_client.ConfigClient {
+func (cs *ConfigServer) initConfigClient() config_client.ConfigClient {
 	nc := nacos_client.NacosClient{}
 	nc.SetServerConfig([]constant.ServerConfig{constant.ServerConfig{
-		IpAddr:      viper.GetString("nacos.config.ip"),
-		Port:        viper.GetUint64("nacos.config.port"),
+		IpAddr:      cs.Ip,
+		Port:        cs.Port,
 		ContextPath: "/nacos",
 	}})
-	nc.SetClientConfig(clientConfigTest)
+	clientConfig.Password = cs.Password
+	clientConfig.Username = cs.Username
+	nc.SetClientConfig(clientConfig)
 	nc.SetHttpAgent(&http_agent.HttpAgent{})
 	client, _ := config_client.NewConfigClient(&nc)
 	return client
 }
 
 func main() {
-	client := initConfigClientTest()
+	var zz cc.ConfigCenter
+	zz = &ConfigServer{
+		Ip:   viper.GetString("nacos.config.ip"),
+		Port: viper.GetUint64("nacos.config.port"),
+	}
+	client := zz.GetConfigClient().(config_client.ConfigClient)
 	content, _ := client.GetConfig(vo.ConfigParam{
 		DataId: "dataId",
 		Group:  "group",

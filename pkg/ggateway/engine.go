@@ -1,21 +1,22 @@
-package engine
+package ggateway
 
 import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"ggateway/pkg/ggateway"
 	"github.com/panjf2000/gnet"
 	"github.com/panjf2000/gnet/pool/goroutine"
 	"log"
 	"net/http"
-	_ "net/http/pprof"
+	"os"
+	"runtime/pprof"
+	"sort"
 )
 
 type httpServer struct {
 	*gnet.EventServer
 	pool   *goroutine.Pool
-	router *ggateway.Router
+	router *Router
 }
 
 type httpCodec struct {
@@ -32,7 +33,7 @@ func (h httpCodec) Decode(c gnet.Conn) (out []byte, err error) {
 	buf := c.Read()
 	c.ResetBuffer()
 	req, err := http.ReadRequest(bufio.NewReader(bytes.NewReader(buf)))
-	c.SetContext(Context{req: req, w: new(ggateway.GatewayHTTPResponseWriter)})
+	c.SetContext(Context{req: req, w: new(GatewayHTTPResponseWriter), index: 0})
 	if len(buf) > 0 {
 		return buf, err
 	} else {
@@ -40,7 +41,7 @@ func (h httpCodec) Decode(c gnet.Conn) (out []byte, err error) {
 	}
 }
 
-func Server(port int, multicore bool, router *ggateway.Router) {
+func Server(port int, multicore bool, router *Router) {
 	p := goroutine.Default()
 	defer p.Release()
 
@@ -53,10 +54,14 @@ func Server(port int, multicore bool, router *ggateway.Router) {
 func (hs *httpServer) OnInitComplete(srv gnet.Server) (action gnet.Action) {
 	log.Printf("HTTP server is listening on %s (multi-cores: %t, loops: %d)\n",
 		srv.Addr.String(), srv.Multicore, srv.NumEventLoop)
+	sort.Sort(sort.Reverse(hs.router.GlobalHandlers))
 	return
 }
 
 func (hs *httpServer) React(frame []byte, c gnet.Conn) (out []byte, action gnet.Action) {
+	cpuProfile, _ := os.Create("cpu_profile")
+	pprof.StartCPUProfile(cpuProfile)
+	defer pprof.StopCPUProfile()
 	if c.Context() == nil {
 		// bad thing happened
 		out = errMsgBytes
@@ -65,23 +70,16 @@ func (hs *httpServer) React(frame []byte, c gnet.Conn) (out []byte, action gnet.
 	}
 	context := c.Context().(Context)
 	if context.req != nil {
-		hs.router.ServeHTTP(context.w, context.req)
+		context.router = hs.router
+		context.ServeHTTP(context.w, context.req)
 	}
-
-	/*	data := append([]byte{}, frame...)
-
-		// Use ants pool to unblock the event-loop.
-		_ = hs.pool.Submit(func() {
-			time.Sleep(1 * time.Second)
-			c.AsyncWrite(data)
-		})*/
 	out = frame
 	return
 }
 
-
-
 type Context struct {
-	req *http.Request
-	w   *ggateway.GatewayHTTPResponseWriter
+	req    *http.Request
+	w      *GatewayHTTPResponseWriter
+	index  int8
+	router *Router
 }

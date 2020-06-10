@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"ggateway/pkg/engine"
+	"ggateway/pkg/ggateway"
 	"ggateway/pkg/ggateway/grouter"
 	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/viper"
@@ -37,7 +37,7 @@ func main() {
 			os.Exit(0)
 		}
 	}()
-	engine.Server(*port, *multicore,grouter.InitRouter())
+	ggateway.Server(*port, *multicore,grouter.InitRouter())
 }
 
 
