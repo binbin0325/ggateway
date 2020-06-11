@@ -79,6 +79,7 @@ package ggateway
 import (
 	"context"
 	"net/http"
+	"sort"
 	"strings"
 	"sync"
 )
@@ -216,7 +217,7 @@ type Router struct {
 	// unrecovered panics.
 	PanicHandler func(http.ResponseWriter, *http.Request, interface{})
 
-	GlobalHandlers HandlersChain
+	globalFilters HandlersChain
 }
 
 func (r *Router) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
@@ -497,6 +498,7 @@ func (c *Context) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	if root := r.trees[req.Method]; root != nil {
 		if handle, ps, tsr := root.getValue(path, r.getParams); handle != nil {
+			c.Next()
 			if ps != nil {
 				handle(w, req, *ps)
 				r.putParams(ps)
@@ -603,7 +605,7 @@ func (m *GatewayHTTPResponseWriter) WriteString(s string) (n int, err error) {
 }
 
 func (r *Router) Use(orderFunc HandlerOrderFunc) {
-	r.GlobalHandlers = append(r.GlobalHandlers, orderFunc)
+	r.globalFilters = append(r.globalFilters, orderFunc)
 }
 
 // 重写 Len() 方法
@@ -619,4 +621,17 @@ func (a HandlersChain) Swap(i, j int) {
 // 重写 Less() 方法， 从大到小排序
 func (a HandlersChain) Less(i, j int) bool {
 	return a[j].Order < a[i].Order
+}
+
+func (c *Context) Next() {
+	c.index++
+	for c.index < int8(len(c.router.globalFilters)) {
+		c.router.globalFilters[c.index].FilterFunc(c.w,c.req)
+		c.index++
+	}
+}
+
+//sort
+func (r *Router) SortGlobalFilters(){
+	sort.Sort(sort.Reverse(r.globalFilters))
 }

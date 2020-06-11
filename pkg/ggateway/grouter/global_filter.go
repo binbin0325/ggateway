@@ -8,13 +8,13 @@ import (
 
 func contextPathStripPrefixGlobalFilter() ggateway.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		fmt.Println(req.URL.Path)
+		fmt.Println("123123",req.URL.Path)
 	}
 }
 
 func contextPathStripPrefixGlobalFilter1() ggateway.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		fmt.Println(req.URL.Path)
+		fmt.Println("456456",req.URL.Path)
 	}
 }
 

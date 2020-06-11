@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"os"
 	"runtime/pprof"
-	"sort"
 )
 
 type httpServer struct {
@@ -33,7 +32,7 @@ func (h httpCodec) Decode(c gnet.Conn) (out []byte, err error) {
 	buf := c.Read()
 	c.ResetBuffer()
 	req, err := http.ReadRequest(bufio.NewReader(bytes.NewReader(buf)))
-	c.SetContext(Context{req: req, w: new(GatewayHTTPResponseWriter), index: 0})
+	c.SetContext(Context{req: req, w: new(GatewayHTTPResponseWriter), index: -1})
 	if len(buf) > 0 {
 		return buf, err
 	} else {
@@ -54,7 +53,7 @@ func Server(port int, multicore bool, router *Router) {
 func (hs *httpServer) OnInitComplete(srv gnet.Server) (action gnet.Action) {
 	log.Printf("HTTP server is listening on %s (multi-cores: %t, loops: %d)\n",
 		srv.Addr.String(), srv.Multicore, srv.NumEventLoop)
-	sort.Sort(sort.Reverse(hs.router.GlobalHandlers))
+	hs.router.SortGlobalFilters()
 	return
 }
 

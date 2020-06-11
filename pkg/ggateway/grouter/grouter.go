@@ -103,8 +103,4 @@ func loadRouter(routers []*Router, router *ggateway.Router) {
 	}
 }
 
-func actuator(w http.ResponseWriter, req *http.Request,_ ggateway.Params) {
-	for k, v := range routerMapping {
-		fmt.Println(k, v)
-	}
-}
+
