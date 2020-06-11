@@ -1,6 +1,7 @@
 package grouter
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"ggateway/pkg/ggateway"
@@ -85,10 +86,14 @@ func proxyReq(v *Router, req *http.Request,w http.ResponseWriter) {
 	defer fasthttp.ReleaseResponse(resp) // 用完需要释放资源
 
 	err := fasthttp.Do(fastReq, resp)
-	fmt.Println(resp.Write(b))
 	if err!=nil{
 		fmt.Println(err)
 	}
-	w.Write(resp.Body())
-
+	buffer :=bufferPool.pool.Get().(*bytes.Buffer)
+	bw := bufio.NewWriter(buffer)
+	if err := resp.Write(bw); err != nil {
+		fmt.Println(err)
+	}
+	bw.Flush()
+	w.Write(buffer.Bytes())
 }

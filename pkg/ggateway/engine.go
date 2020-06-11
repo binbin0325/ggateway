@@ -72,7 +72,7 @@ func (hs *httpServer) React(frame []byte, c gnet.Conn) (out []byte, action gnet.
 		context.router = hs.router
 		context.ServeHTTP(context.w, context.req)
 	}
-	out = frame
+	out = context.w.body
 	return
 }
 
