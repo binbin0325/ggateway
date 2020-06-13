@@ -1,24 +1,20 @@
-package grouter
+package filter
 
 import (
-	"fmt"
 	"ggateway/pkg/ggateway"
-	"net/http"
 )
 
 func contextPathStripPrefixGlobalFilter() ggateway.HandlerFunc {
-	return func(w http.ResponseWriter, req *http.Request) {
-		fmt.Println("123123",req.URL.Path)
+	return func(c *ggateway.Context) {
 	}
 }
 
 func contextPathStripPrefixGlobalFilter1() ggateway.HandlerFunc {
-	return func(w http.ResponseWriter, req *http.Request) {
-		fmt.Println("456456",req.URL.Path)
+	return func(c *ggateway.Context) {
 	}
 }
 
-func loadGlobalFilters(router *ggateway.Router) {
+func LoadGlobalFilters(router *ggateway.Router) {
 	router.Use(ggateway.HandlerOrderFunc{
 		Order:      2,
 		FilterFunc: contextPathStripPrefixGlobalFilter1(),

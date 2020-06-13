@@ -5,12 +5,12 @@
 package ggateway
 
 import (
-"fmt"
-"net/http"
-"reflect"
-"regexp"
-"strings"
-"testing"
+	"fmt"
+	"net/http"
+	"reflect"
+	"regexp"
+	"strings"
+	"testing"
 )
 
 func printChildren(n *node, prefix string) {

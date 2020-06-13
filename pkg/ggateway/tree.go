@@ -5,9 +5,9 @@
 package ggateway
 
 import (
-"strings"
-"unicode"
-"unicode/utf8"
+	"strings"
+	"unicode"
+	"unicode/utf8"
 )
 
 func min(a, b int) int {

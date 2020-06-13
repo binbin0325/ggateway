@@ -2,25 +2,23 @@ package grouter
 
 import (
 	"encoding/json"
-	"fmt"
 	"ggateway/pkg/cc"
 	"ggateway/pkg/cc/nacos"
+	"ggateway/pkg/filter"
 	"ggateway/pkg/ggateway"
 	"github.com/nacos-group/nacos-sdk-go/clients/config_client"
 	"github.com/nacos-group/nacos-sdk-go/vo"
 	"github.com/spf13/viper"
-	"net/http"
 	"os"
 	"strings"
 )
 
 type Router struct {
-	Uri                string      `json:"uri"`
-	Type               string      `json:"type,omitempty"`
-	Predicates         []Predicate `json:"predicates,omitempty"`
-	Order              int         `json:"order,omitempty"`
-	Filters            []Filter    `json:"filters,omitempty"`
-	RouterFiltersChain RouterFiltersChain
+	Uri        string      `json:"uri"`
+	Type       string      `json:"type,omitempty"`
+	Predicates []Predicate `json:"predicates,omitempty"`
+	Order      int         `json:"order,omitempty"`
+	Filters    []Filter    `json:"filters,omitempty"`
 }
 
 type Predicate struct {
@@ -33,18 +31,6 @@ type Filter struct {
 	Args map[string]string `json:"args,omitempty"`
 }
 
-// RouterFiltersChain defines a RouterFilterFunc array.
-type RouterFiltersChain []RouterFilterOrder
-
-//Router Filter Order Func
-type RouterFilterOrder struct {
-	order            int64
-	routerFilterFunc RouterFilterFunc
-}
-
-// RouterFilterFunc defines the handler used by gin middleware as return value.
-type RouterFilterFunc func(req *http.Request) error
-
 //路由映射表
 //key:ContextPath+pattern  不包括*
 //value: *Router
@@ -55,13 +41,9 @@ var contextPath string
 func InitRouter() (router *ggateway.Router) {
 	contextPath = viper.GetString("server.router.context_path")
 	router = ggateway.New()
-	loadGlobalFilters(router)
+	filter.LoadGlobalFilters(router)
 	loadRouter(getRouters(), router)
 	return
-}
-
-func Index(w http.ResponseWriter, r *http.Request, _ ggateway.Params) {
-	fmt.Println("hahahha")
 }
 
 func getRouters() []*Router {
@@ -102,5 +84,3 @@ func loadRouter(routers []*Router, router *ggateway.Router) {
 		}
 	}
 }
-
-

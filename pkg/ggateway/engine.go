@@ -6,12 +6,21 @@ import (
 	"fmt"
 	"github.com/panjf2000/gnet"
 	"github.com/panjf2000/gnet/pool/goroutine"
+	"github.com/valyala/bytebufferpool"
+	"github.com/valyala/fasthttp"
 	"log"
-	"net/http"
 	"os"
 	"runtime/pprof"
 )
 
+type Context struct {
+	index  int8
+	router *Router
+	Resp   *fasthttp.Response
+	Req    *fasthttp.Request
+	Ps     Params
+	Code   int
+}
 type httpServer struct {
 	*gnet.EventServer
 	pool   *goroutine.Pool
@@ -31,8 +40,9 @@ func (h httpCodec) Encode(c gnet.Conn, buf []byte) ([]byte, error) {
 func (h httpCodec) Decode(c gnet.Conn) (out []byte, err error) {
 	buf := c.Read()
 	c.ResetBuffer()
-	req, err := http.ReadRequest(bufio.NewReader(bytes.NewReader(buf)))
-	c.SetContext(Context{req: req, w: new(GatewayHTTPResponseWriter), index: -1})
+	req := new(fasthttp.Request)
+	req.Read(bufio.NewReader(bytes.NewReader(buf)))
+	c.SetContext(Context{Req: req, index: -1})
 	if len(buf) > 0 {
 		return buf, err
 	} else {
@@ -67,18 +77,25 @@ func (hs *httpServer) React(frame []byte, c gnet.Conn) (out []byte, action gnet.
 		action = gnet.Close
 		return
 	}
-	context := c.Context().(Context)
-	if context.req != nil {
-		context.router = hs.router
-		context.ServeHTTP(context.w, context.req)
+	ctx := c.Context().(Context)
+	if ctx.Req != nil {
+		ctx.router = hs.router
+		ctx.ServeHTTP()
+		if out, err := writerResp(&ctx); err != nil {
+			fmt.Println(err)
+		} else {
+			return out, gnet.None
+		}
 	}
-	out = context.w.body
 	return
 }
 
-type Context struct {
-	req    *http.Request
-	w      *GatewayHTTPResponseWriter
-	index  int8
-	router *Router
+func writerResp(ctx *Context) (out []byte, err error) {
+	defer fasthttp.ReleaseResponse(ctx.Resp) // 用完需要释放资源
+	buffer := bytebufferpool.Get()
+	bw := bufio.NewWriter(buffer)
+	err = ctx.Resp.Write(bw)
+	err = bw.Flush()
+	out = buffer.Bytes()
+	return
 }

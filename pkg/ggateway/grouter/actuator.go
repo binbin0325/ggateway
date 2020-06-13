@@ -1,7 +1,7 @@
 package grouter
 
+import "C"
 import (
-	"bufio"
 	"bytes"
 	"fmt"
 	"ggateway/pkg/ggateway"
@@ -10,15 +10,13 @@ import (
 	"github.com/nacos-group/nacos-sdk-go/vo"
 	"github.com/valyala/fasthttp"
 	"io"
-	"net/http"
 	"strconv"
 	"sync"
 )
 
-func actuator(w http.ResponseWriter, req *http.Request, _ ggateway.Params) {
-	for k, v := range routerMapping {
-		fmt.Println(k, v)
-		proxyReq(v,req,w)
+func actuator(c *ggateway.Context) {
+	for _, v := range routerMapping {
+		proxyReq(v, c)
 	}
 }
 
@@ -66,34 +64,20 @@ func (api *Adapter) getRequestBodyBytes(body io.ReadCloser) []byte {
 	return buffer.Bytes()
 }
 
-func proxyReq(v *Router, req *http.Request,w http.ResponseWriter) {
+func proxyReq(v *Router, c *ggateway.Context) {
 	var requestUrl string
 	if v.Type == "lb" {
 		instance := getInstance(v.Uri)
-		requestUrl = "http://" + instance.Ip + ":" + strconv.FormatUint(instance.Port, 10) + req.URL.Path
+		requestUrl = "http://" + instance.Ip + ":" + strconv.FormatUint(instance.Port, 10) + string(c.Req.URI().Path())
 	} else {
 		requestUrl = v.Uri
 	}
 
-	fastReq := fasthttp.AcquireRequest()
-	defer fasthttp.ReleaseRequest(fastReq) // 用完需要释放资源
-	// 默认是application/x-www-form-urlencoded
-	fastReq.Header.SetContentType("application/json")
-	fastReq.Header.SetMethod(req.Method)
-	fastReq.SetRequestURI(requestUrl)
-	fastReq.SetBody(bufferPool.getRequestBodyBytes(req.Body))
-	resp := fasthttp.AcquireResponse()
-	defer fasthttp.ReleaseResponse(resp) // 用完需要释放资源
-
-	err := fasthttp.Do(fastReq, resp)
-	if err!=nil{
+	defer fasthttp.ReleaseRequest(c.Req) // 用完需要释放资源
+	c.Req.SetRequestURI(requestUrl)
+	c.Resp = fasthttp.AcquireResponse()
+	err := fasthttp.Do(c.Req, c.Resp)
+	if err != nil {
 		fmt.Println(err)
 	}
-	buffer :=bufferPool.pool.Get().(*bytes.Buffer)
-	bw := bufio.NewWriter(buffer)
-	if err := resp.Write(bw); err != nil {
-		fmt.Println(err)
-	}
-	bw.Flush()
-	w.Write(buffer.Bytes())
 }
