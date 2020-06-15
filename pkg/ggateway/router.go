@@ -446,12 +446,12 @@ func (r *Router) allowed(path, reqMethod string) (allow string) {
 func (c *Context) ServeHTTP() {
 	r := c.router
 	method := string(c.Req.Header.Method())
-	path := string(c.Req.URI().Path())
+	c.Path = string(c.Req.URI().Path())
 	if r.PanicHandler != nil {
 		defer r.recv(c.Resp, c.Req)
 	}
 	if root := r.trees[method]; root != nil {
-		if handle, ps, tsr := root.getValue(path, r.getParams); handle != nil {
+		if handle, ps, tsr := root.getValue(c.Path, r.getParams); handle != nil {
 			c.Next()
 			if ps != nil {
 				c.Ps = *ps
@@ -461,7 +461,7 @@ func (c *Context) ServeHTTP() {
 				handle(c)
 			}
 			return
-		} else if method != http.MethodConnect && path != "/" {
+		} else if method != http.MethodConnect && c.Path != "/" {
 			// Moved Permanently, request with GET method
 			c.Code = http.StatusMovedPermanently
 			if method != http.MethodGet {
@@ -469,10 +469,10 @@ func (c *Context) ServeHTTP() {
 				c.Code = http.StatusPermanentRedirect
 			}
 			if tsr && r.RedirectTrailingSlash {
-				if len(path) > 1 && path[len(path)-1] == '/' {
-					c.Req.URI().SetPath(path[:len(path)-1])
+				if len(c.Path) > 1 && c.Path[len(c.Path)-1] == '/' {
+					c.Req.URI().SetPath(c.Path[:len(c.Path)-1])
 				} else {
-					c.Req.URI().SetPath(path + "/")
+					c.Req.URI().SetPath(c.Path + "/")
 				}
 				c.ServeHTTP()
 				return
@@ -481,7 +481,7 @@ func (c *Context) ServeHTTP() {
 			// Try to fix the request path
 			if r.RedirectFixedPath {
 				fixedPath, found := root.findCaseInsensitivePath(
-					CleanPath(path),
+					CleanPath(c.Path),
 					r.RedirectTrailingSlash,
 				)
 				if found {
@@ -495,7 +495,7 @@ func (c *Context) ServeHTTP() {
 
 	if method == http.MethodOptions && r.HandleOPTIONS {
 		// Handle OPTIONS requests
-		if allow := r.allowed(path, http.MethodOptions); allow != "" {
+		if allow := r.allowed(c.Path, http.MethodOptions); allow != "" {
 			c.Resp.Header.Add("Allow", allow)
 			if r.GlobalOPTIONS != nil {
 				r.GlobalOPTIONS.ServeHTTP(c)
@@ -503,7 +503,7 @@ func (c *Context) ServeHTTP() {
 			return
 		}
 	} else if r.HandleMethodNotAllowed { // Handle 405
-		if allow := r.allowed(path, method); allow != "" {
+		if allow := r.allowed(c.Path, method); allow != "" {
 			c.Resp.Header.Add("Allow", allow)
 			if r.MethodNotAllowed != nil {
 				r.MethodNotAllowed.ServeHTTP(c)

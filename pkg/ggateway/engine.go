@@ -20,6 +20,7 @@ type Context struct {
 	Req    *fasthttp.Request
 	Ps     Params
 	Code   int
+	Path   string
 }
 type httpServer struct {
 	*gnet.EventServer
@@ -51,6 +52,8 @@ func (h httpCodec) Decode(c gnet.Conn) (out []byte, err error) {
 }
 
 func Server(port int, multicore bool, router *Router) {
+	cpuProfile, _ := os.Create("cpu_profile")
+	pprof.StartCPUProfile(cpuProfile)
 	p := goroutine.Default()
 	defer p.Release()
 
@@ -68,8 +71,6 @@ func (hs *httpServer) OnInitComplete(srv gnet.Server) (action gnet.Action) {
 }
 
 func (hs *httpServer) React(frame []byte, c gnet.Conn) (out []byte, action gnet.Action) {
-	cpuProfile, _ := os.Create("cpu_profile")
-	pprof.StartCPUProfile(cpuProfile)
 	defer pprof.StopCPUProfile()
 	if c.Context() == nil {
 		// bad thing happened

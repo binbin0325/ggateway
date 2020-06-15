@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"ggateway/pkg/cc"
 	"ggateway/pkg/cc/nacos"
-	"ggateway/pkg/filter"
 	"ggateway/pkg/ggateway"
 	"github.com/nacos-group/nacos-sdk-go/clients/config_client"
 	"github.com/nacos-group/nacos-sdk-go/vo"
@@ -41,7 +40,7 @@ var contextPath string
 func InitRouter() (router *ggateway.Router) {
 	contextPath = viper.GetString("server.router.context_path")
 	router = ggateway.New()
-	filter.LoadGlobalFilters(router)
+	loadGlobalFilters(router)
 	loadRouter(getRouters(), router)
 	return
 }

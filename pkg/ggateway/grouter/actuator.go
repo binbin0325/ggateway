@@ -68,7 +68,7 @@ func proxyReq(v *Router, c *ggateway.Context) {
 	var requestUrl string
 	if v.Type == "lb" {
 		instance := getInstance(v.Uri)
-		requestUrl = "http://" + instance.Ip + ":" + strconv.FormatUint(instance.Port, 10) + string(c.Req.URI().Path())
+		requestUrl = "http://" + instance.Ip + ":" + strconv.FormatUint(instance.Port, 10) + c.Path
 	} else {
 		requestUrl = v.Uri
 	}
