@@ -41,10 +41,10 @@ func (h httpCodec) Encode(c gnet.Conn, buf []byte) ([]byte, error) {
 func (h httpCodec) Decode(c gnet.Conn) (out []byte, err error) {
 	buf := c.Read()
 	c.ResetBuffer()
-	req := new(fasthttp.Request)
-	req.Read(bufio.NewReader(bytes.NewReader(buf)))
-	c.SetContext(Context{Req: req, index: -1})
 	if len(buf) > 0 {
+		req := new(fasthttp.Request)
+		req.Read(bufio.NewReader(bytes.NewReader(buf)))
+		c.SetContext(Context{Req: req, index: -1})
 		return buf, err
 	} else {
 		return
@@ -78,16 +78,22 @@ func (hs *httpServer) React(frame []byte, c gnet.Conn) (out []byte, action gnet.
 		action = gnet.Close
 		return
 	}
-	ctx := c.Context().(Context)
-	if ctx.Req != nil {
-		ctx.router = hs.router
-		ctx.ServeHTTP()
-		if out, err := writerResp(&ctx); err != nil {
-			fmt.Println(err)
-		} else {
-			return out, gnet.None
+	// Use ants pool to unblock the event-loop.
+	_ = hs.pool.Submit(func() {
+		ctx := c.Context().(Context)
+		if ctx.Req != nil {
+			ctx.router = hs.router
+			ctx.ServeHTTP()
+			if ctx.Resp != nil {
+				if out, err := writerResp(&ctx); err != nil {
+					fmt.Println(err)
+				} else {
+					c.AsyncWrite(out)
+				}
+			}
 		}
-	}
+	})
+
 	return
 }
 

@@ -12,6 +12,7 @@ import (
 	"io"
 	"strconv"
 	"sync"
+	"time"
 )
 
 func actuator(c *ggateway.Context) {
@@ -65,6 +66,7 @@ func (api *Adapter) getRequestBodyBytes(body io.ReadCloser) []byte {
 }
 
 func proxyReq(v *Router, c *ggateway.Context) {
+	fmt.Println("发送请求--------")
 	var requestUrl string
 	if v.Type == "lb" {
 		instance := getInstance(v.Uri)
@@ -76,8 +78,15 @@ func proxyReq(v *Router, c *ggateway.Context) {
 	defer fasthttp.ReleaseRequest(c.Req) // 用完需要释放资源
 	c.Req.SetRequestURI(requestUrl)
 	c.Resp = fasthttp.AcquireResponse()
-	err := fasthttp.Do(c.Req, c.Resp)
+	client := &fasthttp.Client{
+		MaxConnsPerHost: 10000,
+		ReadTimeout: 3 * time.Second,
+		WriteTimeout: 3 * time.Second,
+	}
+	err := client.Do(c.Req, c.Resp)
+
 	if err != nil {
 		fmt.Println(err)
 	}
+	fmt.Println("请求结束--------")
 }
