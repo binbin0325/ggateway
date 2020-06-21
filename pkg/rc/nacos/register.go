@@ -141,6 +141,7 @@ func initRegisterClient() naming_client.INamingClient {
 			ListenInterval:      10000,
 			NotLoadCacheAtStart: true,
 			LogDir:              "data/nacos/log",
+			CacheDir:            "data/nacos/cache",
 			//Username:			 "nacos",
 			//Password:			 "nacos",
 		},

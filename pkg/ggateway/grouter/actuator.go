@@ -66,15 +66,17 @@ func (api *Adapter) getRequestBodyBytes(body io.ReadCloser) []byte {
 }
 
 func proxyReq(v *Router, c *ggateway.Context) {
+	defer fasthttp.ReleaseRequest(c.Req) // 用完需要释放资源
 	var requestUrl string
 	if v.Type == "lb" {
 		instance := getInstance(v.Uri)
+		if instance == nil {
+			fmt.Println("instance is nil")
+		}
 		requestUrl = "http://" + instance.Ip + ":" + strconv.FormatUint(instance.Port, 10) + c.Path
 	} else {
 		requestUrl = v.Uri
 	}
-
-	defer fasthttp.ReleaseRequest(c.Req) // 用完需要释放资源
 	c.Req.SetRequestURI(requestUrl)
 	c.Resp = fasthttp.AcquireResponse()
 	err := fasthttp.DoTimeout(c.Req, c.Resp, 10*time.Second)
