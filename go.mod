@@ -11,3 +11,4 @@ require (
 	github.com/valyala/fasthttp v1.14.0
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 )
+replace github.com/nacos-group/nacos-sdk-go => github.com/sanxun0325/nacos-sdk-go v0.3.3

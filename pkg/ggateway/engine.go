@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"github.com/panjf2000/gnet"
 	"github.com/panjf2000/gnet/pool/goroutine"
+	"github.com/spf13/viper"
 	"github.com/valyala/bytebufferpool"
 	"github.com/valyala/fasthttp"
 	"log"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
-	"runtime/pprof"
 )
 
 type Context struct {
@@ -34,6 +36,8 @@ type httpCodec struct {
 var errMsg = "Internal Server Error"
 var errMsgBytes = []byte(errMsg)
 
+var cpuProfile *os.File
+
 func (h httpCodec) Encode(c gnet.Conn, buf []byte) ([]byte, error) {
 	return buf, nil
 }
@@ -52,8 +56,8 @@ func (h httpCodec) Decode(c gnet.Conn) (out []byte, err error) {
 }
 
 func Server(port int, multicore bool, router *Router) {
-	cpuProfile, _ := os.Create("cpu_profile")
-	pprof.StartCPUProfile(cpuProfile)
+	cpuProfile, _ = os.Create("cpu_profile")
+
 	p := goroutine.Default()
 	defer p.Release()
 
@@ -67,11 +71,13 @@ func (hs *httpServer) OnInitComplete(srv gnet.Server) (action gnet.Action) {
 	log.Printf("HTTP server is listening on %s (multi-cores: %t, loops: %d)\n",
 		srv.Addr.String(), srv.Multicore, srv.NumEventLoop)
 	hs.router.SortGlobalFilters()
+	go func() {
+		log.Println(http.ListenAndServe(viper.GetString("pprof.server"), nil))
+	}()
 	return
 }
 
 func (hs *httpServer) React(frame []byte, c gnet.Conn) (out []byte, action gnet.Action) {
-	defer pprof.StopCPUProfile()
 	if c.Context() == nil {
 		// bad thing happened
 		out = errMsgBytes
