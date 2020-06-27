@@ -78,7 +78,6 @@ package ggateway
 
 import (
 	"context"
-	"fmt"
 	"github.com/valyala/fasthttp"
 	"net/http"
 	"sort"
@@ -508,11 +507,8 @@ func (c *Context) ServeHTTP() {
 			if r.MethodNotAllowed != nil {
 				r.MethodNotAllowed.ServeHTTP(c)
 			} else {
-				/*	http.Error(w,
-					http.StatusText(http.StatusMethodNotAllowed),
-					http.StatusMethodNotAllowed,
-				)*/
-				fmt.Println(http.StatusMethodNotAllowed)
+				c.Resp = new(fasthttp.Response)
+				c.Resp.SetStatusCode(http.StatusMethodNotAllowed)
 			}
 			return
 		}
@@ -522,7 +518,9 @@ func (c *Context) ServeHTTP() {
 	if r.NotFound != nil {
 		r.NotFound.ServeHTTP(c)
 	} else {
-		fmt.Println("not found")
+		//异常情况Resp应该从对象池中获取
+		c.Resp = new(fasthttp.Response)
+		c.Resp.SetBody([]byte("not found"))
 	}
 }
 
