@@ -78,7 +78,6 @@ func proxyReq(v *Router, c *ggateway.Context) {
 		requestUrl = v.Uri
 	}
 	c.Req.SetRequestURI(requestUrl)
-	c.Resp = fasthttp.AcquireResponse()
 	err := fasthttp.DoTimeout(c.Req, c.Resp, 10*time.Second)
 
 	if err != nil {

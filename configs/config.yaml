@@ -7,6 +7,9 @@ nacos:
   config:
     ip: 192.168.23.178
     port: 8848
+  log: 'C:\GoWork\binbin\ggateway\data\nacos\log'
+  cache: 'C:\GoWork\binbin\ggateway\data\nacos\cache'
+
 
 pprof:
   server: localhost:6060

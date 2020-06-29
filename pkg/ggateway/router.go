@@ -507,7 +507,6 @@ func (c *Context) ServeHTTP() {
 			if r.MethodNotAllowed != nil {
 				r.MethodNotAllowed.ServeHTTP(c)
 			} else {
-				c.Resp = new(fasthttp.Response)
 				c.Resp.SetStatusCode(http.StatusMethodNotAllowed)
 			}
 			return
@@ -518,8 +517,6 @@ func (c *Context) ServeHTTP() {
 	if r.NotFound != nil {
 		r.NotFound.ServeHTTP(c)
 	} else {
-		//异常情况Resp应该从对象池中获取
-		c.Resp = new(fasthttp.Response)
 		c.Resp.SetBody([]byte("not found"))
 	}
 }

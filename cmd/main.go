@@ -40,8 +40,7 @@ func main() {
 	ggateway.Server(*port, *multicore,grouter.InitRouter())
 }
 
-
-func init() {
+func init(){
 	viper.SetConfigName("config")  //  设置配置文件名 (不带后缀)
 	viper.AddConfigPath("configs") // 第一个搜索路径
 	err := viper.ReadInConfig()    // 搜索路径，并读取配置数据
